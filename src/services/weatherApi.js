@@ -1,11 +1,10 @@
-const BASE_URL = "https://weather-dashboard-7jt7.onrender.com";
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 export const getWeather = async (city) => {
-  const res = await fetch(`${BASE_URL}/weather?city=${encodeURIComponent(city)}`);
+  const res = await fetch(`${BASE_URL}/weather?city=${city}`);
 
   if (!res.ok) {
-    const errorData = await res.json().catch(() => null);
-    throw new Error(errorData?.error || "Failed to fetch weather");
+    throw new Error("Failed to fetch weather");
   }
 
   return res.json();
