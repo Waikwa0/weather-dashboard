@@ -16,14 +16,14 @@ const cache = {};
 const CACHE_DURATION = 10 * 60 * 1000;
 
 const CITY_DB = {
-  nairobi: { lat: -1.2921, lon: 36.8219 },
-  mombasa: { lat: -4.0435, lon: 39.6682 },
-  kisumu: { lat: -0.0917, lon: 34.768 },
-  london: { lat: 51.5072, lon: -0.1276 },
-  newyork: { lat: 40.7128, lon: -74.006 },
-  dubai: { lat: 25.2048, lon: 55.2708 },
-  tokyo: { lat: 35.6762, lon: 139.6503 },
-  paris: { lat: 48.8566, lon: 2.3522 },
+  Nairobi: { lat: -1.2921, lon: 36.8219 },
+  Mombasa: { lat: -4.0435, lon: 39.6682 },
+  Kisumu: { lat: -0.0917, lon: 34.768 },
+  London: { lat: 51.5072, lon: -0.1276 },
+  NewYork: { lat: 40.7128, lon: -74.006 },
+  Dubai: { lat: 25.2048, lon: 55.2708 },
+  Tokyo: { lat: 35.6762, lon: 139.6503 },
+  Paris: { lat: 48.8566, lon: 2.3522 },
 };
 
 function normalize(city) {
@@ -80,28 +80,28 @@ app.get("/weather", async (req, res) => {
     }
 
     let geo = null;
-    let resolvedFrom = "unknown";
+    let source = "unknown";
 
     if (lat && lon) {
       geo = {
         lat: parseFloat(lat),
         lon: parseFloat(lon),
       };
-      resolvedFrom = "coords";
+      source = "coordinates";
     }
 
     else if (city && CITY_DB[normalize(city)]) {
       geo = CITY_DB[normalize(city)];
-      resolvedFrom = "local_db";
+      source = "local_db";
     }
 
     else if (city) {
       geo = await geocodeCity(city);
-      resolvedFrom = "geocoding";
+      source = "geocoding";
 
       if (!geo) {
         return res.status(404).json({
-          error: "City not found (all sources failed)",
+          error: "City not found anywhere (local DB + global geocoder failed)",
         });
       }
     }
@@ -139,9 +139,9 @@ app.get("/weather", async (req, res) => {
 
     const result = {
       ...response.data,
-      searched_city: city,
+      searched_city: city || "coordinates",
       resolved_location: geo,
-      resolved_from: resolvedFrom,
+      source_used: source,
     };
 
     cache[cacheKey] = {
