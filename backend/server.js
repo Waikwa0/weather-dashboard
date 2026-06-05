@@ -12,40 +12,26 @@ const API_KEY = process.env.WEATHER_API_KEY;
 
 console.log("API KEY LOADED:", API_KEY ? "YES" : "NO");
 
-// -------------------- CACHE --------------------
-const weatherCache = {};
+const cache = {};
 const CACHE_DURATION = 10 * 60 * 1000;
 
-async function geocodeCity(city) {
-  try {
-    const url = "https://nominatim.openstreetmap.org/search";
+const CITY_DB = {
+  nairobi: { lat: -1.2921, lon: 36.8219 },
+  mombasa: { lat: -4.0435, lon: 39.6682 },
+  kisumu: { lat: -0.0917, lon: 34.768 },
+  london: { lat: 51.5072, lon: -0.1276 },
+  newyork: { lat: 40.7128, lon: -74.006 },
+  dubai: { lat: 25.2048, lon: 55.2708 },
+  tokyo: { lat: 35.6762, lon: 139.6503 },
+  paris: { lat: 48.8566, lon: 2.3522 },
+};
 
-    const res = await axios.get(url, {
-      params: {
-        q: city,
-        format: "json",
-        limit: 1,
-      },
-      headers: {
-        "User-Agent": "weather-dashboard-app",
-        "Accept-Language": "en",
-      },
-      timeout: 8000,
-    });
+function resolveCity(city) {
+  if (!city) return null;
 
-    if (!res.data || res.data.length === 0) {
-      return null;
-    }
+  const key = city.toLowerCase().replace(/\s/g, "");
 
-    return {
-      lat: parseFloat(res.data[0].lat),
-      lon: parseFloat(res.data[0].lon),
-      displayName: res.data[0].display_name,
-    };
-  } catch (err) {
-    console.log("Geocoding failed:", err.message);
-    return null;
-  }
+  return CITY_DB[key] || null;
 }
 
 app.get("/", (req, res) => {
@@ -56,47 +42,44 @@ app.get("/weather", async (req, res) => {
   try {
     const {
       city,
+      lat,
+      lon,
       days = 3,
       ai = false,
       units = "metric",
-      lat,
-      lon,
     } = req.query;
 
     if (!API_KEY) {
       return res.status(500).json({ error: "Missing API key" });
     }
 
-    const cacheKey = `${city || lat}-${lon}-${days}-${units}-${ai}`;
-
-    if (
-      weatherCache[cacheKey] &&
-      Date.now() - weatherCache[cacheKey].timestamp < CACHE_DURATION
-    ) {
-      return res.json(weatherCache[cacheKey].data);
-    }
-
     let geo = null;
 
-    
     if (lat && lon) {
       geo = { lat: parseFloat(lat), lon: parseFloat(lon) };
-    } else if (city) {
-      geo = await geocodeCity(city);
+    }
+
+    else if (city) {
+      geo = resolveCity(city);
 
       if (!geo) {
         return res.status(404).json({
-          error: "City not found (geocoding failed)",
+          error: "City not supported. Try: Nairobi, Mombasa, Kisumu, London, Dubai, Tokyo",
         });
       }
-    } else {
+    }
+
+    else {
       return res.status(400).json({
-        error: "Provide either city or lat/lon",
+        error: "Provide city or lat/lon",
       });
     }
 
-    console.log(`📍 Location resolved:`, geo);
+    const cacheKey = `${geo.lat}-${geo.lon}-${days}-${units}`;
 
+    if (cache[cacheKey] && Date.now() - cache[cacheKey].time < CACHE_DURATION) {
+      return res.json(cache[cacheKey].data);
+    }
 
     const response = await axios.get(
       "https://api.weather-ai.co/v1/weather",
@@ -116,27 +99,25 @@ app.get("/weather", async (req, res) => {
 
     const result = {
       ...response.data,
-      searched_city: city || "custom_location",
       resolved_location: geo,
+      searched_city: city || "coordinates",
     };
 
-   
-    weatherCache[cacheKey] = {
+    cache[cacheKey] = {
       data: result,
-      timestamp: Date.now(),
+      time: Date.now(),
     };
 
-    return res.json(result);
+    res.json(result);
   } catch (error) {
     console.log("ERROR:", error.response?.data || error.message);
 
-    return res.status(500).json({
+    res.status(500).json({
       error: "Backend failed",
       details: error.response?.data || error.message,
     });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
