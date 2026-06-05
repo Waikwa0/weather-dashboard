@@ -11,7 +11,7 @@ app.use(express.json());
 
 const API_KEY = process.env.WEATHER_API_KEY;
 
-console.log("🔑 API KEY LOADED:", API_KEY ? "YES" : "NO");
+console.log("API KEY LOADED:", API_KEY ? "YES" : "NO");
 
 
 const weatherCache = {};
@@ -19,6 +19,8 @@ const CACHE_DURATION = 10 * 60 * 1000;
 
 
 async function geocodeCity(city) {
+    console.log("Geocoding:", city);
+
   const url = "https://nominatim.openstreetmap.org/search";
 
   const res = await axios.get(url, {
@@ -31,6 +33,8 @@ async function geocodeCity(city) {
       "User-Agent": "weather-dashboard",
     },
   });
+
+    console.log("Geocoding success");
 
   if (!res.data || res.data.length === 0) {
     return null;
@@ -99,7 +103,9 @@ app.get("/weather", async (req, res) => {
     console.log(
       `📍 Resolved ${city} -> ${geo.lat}, ${geo.lon}`
     );
-
+    
+    console.log("Calling Weather AI...");
+    
     const response = await axios.get(
       "https://api.weather-ai.co/v1/weather",
       {
