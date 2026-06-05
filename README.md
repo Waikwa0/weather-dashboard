@@ -1,16 +1,40 @@
-# React + Vite
+##PROJECT TITLE : WEATHER DASHBOARD
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack weather application that fetches real-time weather data using the Weather AI API and supports global city search through geocoding.
 
-Currently, two official plugins are available:
+##FEATURES
+Ability to search any city worldwide
+Real-time weather data
+Geocoding
+Backend caching for performance enhancement
+Deployment of frontend and backend
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+##TECH STACK
 
-## React Compiler
+React
+Node.js
+Express
+Axios
+Weather AI API
+Render (backend)
+Vercel (frontend)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+##SETUP GUIDELINES
+#Backend
+cd backend
+npm install
+npm start
 
-## Expanding the ESLint configuration
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+#Frontend
+cd weather-dashboard
+npm install
+npm run dev
+
+VITE_API_URL=[[https://weather-dashboard-7jt7.onrender.com](https://weather-dashboard-7jt7.onrender.com)
+](https://weather-dashboard-7jt7.onrender.com/weather?city=Nairobi)
+
+
+##LIVE LINKS
+Frontend: [https://your-vercel-link.vercel.app  ](https://weather-dashboard-three-smoky.vercel.app/)
+Backend: [https://weather-dashboard-7jt7.onrender.com](https://weather-dashboard-7jt7.onrender.com)
