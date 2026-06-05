@@ -13,26 +13,20 @@ const API_KEY = process.env.WEATHER_API_KEY;
 
 console.log("API KEY LOADED:", API_KEY ? "YES" : "NO");
 
-
-
-// Weather cache (10 min)
 const weatherCache = {};
-const CACHE_DURATION = 10 * 60 * 1000;
-
-// Geocode cache 
 const geoCache = {};
-const GEO_CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+const WEATHER_CACHE_TIME = 10 * 60 * 1000; 
+const GEO_CACHE_TIME = 24 * 60 * 60 * 1000; 
+
 
 
 async function geocodeCity(city) {
   const key = city.toLowerCase().trim();
 
-  // return cached geocode if available
-  if (
-    geoCache[key] &&
-    Date.now() - geoCache[key].timestamp < GEO_CACHE_DURATION
-  ) {
-    console.log("📦 Serving cached geocode:", key);
+  // return cached geo if exists
+  if (geoCache[key] && Date.now() - geoCache[key].timestamp < GEO_CACHE_TIME) {
+    console.log("Geo cache hit:", key);
     return geoCache[key].data;
   }
 
@@ -54,46 +48,39 @@ async function geocodeCity(city) {
       }
     );
 
-    if (!res.data || res.data.length === 0) return null;
+    if (!Array.isArray(res.data) || res.data.length === 0) {
+      return null;
+    }
 
     const result = {
       lat: parseFloat(res.data[0].lat),
       lon: parseFloat(res.data[0].lon),
-      displayName: res.data[0].display_name,
+      name: res.data[0].display_name,
     };
 
-    // store in cache
     geoCache[key] = {
       data: result,
       timestamp: Date.now(),
     };
 
-    console.log("Geocoding success");
     return result;
   } catch (err) {
-    console.log("❌ Geocoding failed:", err.message);
+    console.log("Geocode error:", err.message);
     return null;
   }
 }
 
 
+
 app.get("/", (req, res) => {
-  res.json({
-    status: "Weather Backend Running",
-  });
+  res.json({ status: "Weather Backend Running" });
 });
+
 
 
 app.get("/weather", async (req, res) => {
   try {
-    const {
-      city,
-      days = 3,
-      ai = false,
-      units = "metric",
-    } = req.query;
-
-    console.log("Incoming request:", req.query);
+    const { city, days = 3, ai = false, units = "metric" } = req.query;
 
     if (!API_KEY) {
       return res.status(500).json({ error: "Missing API key" });
@@ -103,28 +90,27 @@ app.get("/weather", async (req, res) => {
       return res.status(400).json({ error: "City is required" });
     }
 
-    // cache key
-    const cacheKey = `${city}-${days}-${units}-${ai}`;
+    const cacheKey = `${city}-${days}-${units}`;
 
-    // return cached weather if valid
+
     if (
       weatherCache[cacheKey] &&
-      Date.now() - weatherCache[cacheKey].timestamp < CACHE_DURATION
+      Date.now() - weatherCache[cacheKey].timestamp < WEATHER_CACHE_TIME
     ) {
-      console.log("Serving cached weather");
+      console.log("Weather cache hit");
       return res.json(weatherCache[cacheKey].data);
     }
 
-    // geocode city
     const geo = await geocodeCity(city);
 
     if (!geo) {
-      return res.status(404).json({ error: "City not found" });
+      return res.status(404).json({
+        error: "City not found (geocoding failed)",
+      });
     }
 
     console.log(`📍 ${city} → ${geo.lat}, ${geo.lon}`);
 
-    // weather API call
     const response = await axios.get(
       "https://api.weather-ai.co/v1/weather",
       {
@@ -153,8 +139,6 @@ app.get("/weather", async (req, res) => {
       timestamp: Date.now(),
     };
 
-    console.log("Weather API success");
-
     res.json(result);
   } catch (error) {
     console.log("ERROR:", error.response?.data || error.message);
@@ -165,6 +149,7 @@ app.get("/weather", async (req, res) => {
     });
   }
 });
+
 
 
 app.listen(PORT, () => {
