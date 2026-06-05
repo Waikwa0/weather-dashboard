@@ -26,12 +26,38 @@ const CITY_DB = {
   paris: { lat: 48.8566, lon: 2.3522 },
 };
 
-function resolveCity(city) {
-  if (!city) return null;
+function normalize(city) {
+  return city.toLowerCase().replace(/\s/g, "");
+}
 
-  const key = city.toLowerCase().replace(/\s/g, "");
+async function geocodeCity(city) {
+  try {
+    const res = await axios.get(
+      "https://nominatim.openstreetmap.org/search",
+      {
+        params: {
+          q: city,
+          format: "json",
+          limit: 1,
+        },
+        headers: {
+          "User-Agent": "weather-dashboard-app",
+        },
+        timeout: 8000,
+      }
+    );
 
-  return CITY_DB[key] || null;
+    if (!res.data || res.data.length === 0) return null;
+
+    return {
+      lat: parseFloat(res.data[0].lat),
+      lon: parseFloat(res.data[0].lon),
+      displayName: res.data[0].display_name,
+    };
+  } catch (err) {
+    console.log("Geocoding failed:", err.message);
+    return null;
+  }
 }
 
 app.get("/", (req, res) => {
@@ -54,17 +80,28 @@ app.get("/weather", async (req, res) => {
     }
 
     let geo = null;
+    let resolvedFrom = "unknown";
 
     if (lat && lon) {
-      geo = { lat: parseFloat(lat), lon: parseFloat(lon) };
+      geo = {
+        lat: parseFloat(lat),
+        lon: parseFloat(lon),
+      };
+      resolvedFrom = "coords";
+    }
+
+    else if (city && CITY_DB[normalize(city)]) {
+      geo = CITY_DB[normalize(city)];
+      resolvedFrom = "local_db";
     }
 
     else if (city) {
-      geo = resolveCity(city);
+      geo = await geocodeCity(city);
+      resolvedFrom = "geocoding";
 
       if (!geo) {
         return res.status(404).json({
-          error: "City not supported. Try: Nairobi, Mombasa, Kisumu, London, Dubai, Tokyo",
+          error: "City not found (all sources failed)",
         });
       }
     }
@@ -77,7 +114,10 @@ app.get("/weather", async (req, res) => {
 
     const cacheKey = `${geo.lat}-${geo.lon}-${days}-${units}`;
 
-    if (cache[cacheKey] && Date.now() - cache[cacheKey].time < CACHE_DURATION) {
+    if (
+      cache[cacheKey] &&
+      Date.now() - cache[cacheKey].time < CACHE_DURATION
+    ) {
       return res.json(cache[cacheKey].data);
     }
 
@@ -99,8 +139,9 @@ app.get("/weather", async (req, res) => {
 
     const result = {
       ...response.data,
+      searched_city: city,
       resolved_location: geo,
-      searched_city: city || "coordinates",
+      resolved_from: resolvedFrom,
     };
 
     cache[cacheKey] = {
@@ -108,11 +149,11 @@ app.get("/weather", async (req, res) => {
       time: Date.now(),
     };
 
-    res.json(result);
+    return res.json(result);
   } catch (error) {
     console.log("ERROR:", error.response?.data || error.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Backend failed",
       details: error.response?.data || error.message,
     });
